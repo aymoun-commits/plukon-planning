@@ -1320,7 +1320,286 @@
         alternateRow = !alternateRow;
       });
       
-      pdf.save(`planning-plukon-${state.currentDate}.pdf`);
+      // Sauvegarder le PDF dans l'historique
+      const pdfBlob = pdf.output('blob');
+      const reader = new FileReader();
+      reader.onloadend = function() {
+        const pdfBase64 = reader.result;
+        savePDFToHistory(pdfBase64);
+      };
+      reader.readAsDataURL(pdfBlob);
+      
+      pdf.save(`planning-plukon-${state.currentDate}-${state.currentShift}.pdf`);
+    }
+    
+    // ==================== SAUVEGARDE PDF DANS HISTORIQUE ====================
+    function savePDFToHistory(pdfBase64) {
+      const historyKey = 'plukon-pdf-history';
+      let pdfHistory = [];
+      
+      try {
+        const stored = localStorage.getItem(historyKey);
+        if (stored) {
+          pdfHistory = JSON.parse(stored);
+        }
+      } catch (e) {
+        pdfHistory = [];
+      }
+      
+      // Créer l'entrée PDF
+      const pdfEntry = {
+        date: state.currentDate,
+        shift: state.currentShift,
+        timestamp: new Date().toISOString(),
+        filename: `planning-plukon-${state.currentDate}-${state.currentShift}.pdf`,
+        pdfData: pdfBase64,
+        totalEmployees: getAssignedEmployeeIds().size,
+      };
+      
+      // Vérifier si une entrée existe déjà pour cette date/équipe
+      const existingIndex = pdfHistory.findIndex(p => 
+        p.date === state.currentDate && p.shift === state.currentShift
+      );
+      
+      if (existingIndex >= 0) {
+        // Remplacer l'entrée existante
+        pdfHistory[existingIndex] = pdfEntry;
+      } else {
+        // Ajouter une nouvelle entrée
+        pdfHistory.unshift(pdfEntry);
+      }
+      
+      // Limiter à 30 PDFs (pour ne pas surcharger le localStorage)
+      if (pdfHistory.length > 30) {
+        pdfHistory = pdfHistory.slice(0, 30);
+      }
+      
+      try {
+        localStorage.setItem(historyKey, JSON.stringify(pdfHistory));
+        console.log('✅ PDF sauvegardé dans l\'historique');
+      } catch (e) {
+        console.warn('⚠️ Impossible de sauvegarder le PDF (localStorage plein)', e);
+        // Si le localStorage est plein, garder seulement les 10 plus récents
+        pdfHistory = pdfHistory.slice(0, 10);
+        try {
+          localStorage.setItem(historyKey, JSON.stringify(pdfHistory));
+        } catch (e2) {
+          console.error('❌ Impossible de sauvegarder le PDF');
+        }
+      }
+    }
+    
+    function showPDFHistoryModal() {
+      const historyKey = 'plukon-pdf-history';
+      let pdfHistory = [];
+      
+      try {
+        const stored = localStorage.getItem(historyKey);
+        if (stored) {
+          pdfHistory = JSON.parse(stored);
+        }
+      } catch (e) {
+        pdfHistory = [];
+      }
+
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      `;
+      
+      modal.innerHTML = `
+        <div style="
+          background: white;
+          border-radius: 12px;
+          padding: 2rem;
+          max-width: 900px;
+          width: 95%;
+          max-height: 85vh;
+          overflow-y: auto;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        ">
+          <h2 style="margin: 0 0 1.5rem 0; color: #00783C; font-size: 1.5rem;">
+            📄 Archives PDF des Plannings
+          </h2>
+          
+          <div style="margin-bottom: 1.5rem; padding: 1rem; background: #e8f5ec; border-radius: 8px;">
+            <p style="margin: 0; font-size: 0.95rem; color: #333;">
+              <strong>${pdfHistory.length}</strong> PDF sauvegardé(s)
+            </p>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #666;">
+              Chaque PDF est automatiquement archivé lors de l'export
+            </p>
+          </div>
+          
+          ${pdfHistory.length === 0 ? `
+            <div style="text-align: center; padding: 3rem 1rem; color: #999;">
+              <p style="font-size: 3rem; margin: 0 0 1rem 0;">📭</p>
+              <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">Aucun PDF archivé</p>
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+                Exportez un planning pour créer votre première archive PDF
+              </p>
+            </div>
+          ` : `
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              ${pdfHistory.map((entry, index) => {
+                const date = new Date(entry.timestamp);
+                const formattedDate = date.toLocaleDateString('fr-FR', { 
+                  day: '2-digit', 
+                  month: '2-digit', 
+                  year: 'numeric' 
+                });
+                const formattedTime = date.toLocaleTimeString('fr-FR', { 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                });
+                const shiftLabel = entry.shift === 'matin' ? '🌅 Matin (06:30)' : '🌆 Après-midi (14:41)';
+                const planningDate = formatDate(entry.date);
+                
+                return `
+                  <div style="
+                    border: 2px solid #e0e0e0;
+                    border-radius: 10px;
+                    padding: 1.25rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    transition: all 0.2s;
+                    background: white;
+                  " onmouseover="this.style.borderColor='#00783C'; this.style.background='#f8fdf9'; this.style.boxShadow='0 4px 12px rgba(0,120,60,0.1)'" 
+                     onmouseout="this.style.borderColor='#e0e0e0'; this.style.background='white'; this.style.boxShadow='none'">
+                    <div style="flex: 1;">
+                      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                        <span style="font-size: 1.5rem;">📄</span>
+                        <div>
+                          <div style="font-weight: 700; color: #00783C; font-size: 1.1rem; margin-bottom: 0.25rem;">
+                            ${planningDate}
+                          </div>
+                          <div style="font-size: 0.9rem; color: #666; font-weight: 500;">
+                            ${shiftLabel}
+                          </div>
+                        </div>
+                      </div>
+                      <div style="font-size: 0.85rem; color: #999; margin-top: 0.5rem;">
+                        👥 ${entry.totalEmployees} employé(s) • 💾 Archivé le ${formattedDate} à ${formattedTime}
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-direction: column;">
+                      <button onclick="window.downloadArchivedPDF('${entry.timestamp}')" style="
+                        padding: 0.6rem 1.2rem;
+                        background: #00783C;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                        font-weight: 600;
+                        white-space: nowrap;
+                      " onmouseover="this.style.background='#005a2c'" 
+                         onmouseout="this.style.background='#00783C'">
+                        📥 Télécharger
+                      </button>
+                      <button onclick="window.deleteArchivedPDF('${entry.timestamp}')" style="
+                        padding: 0.6rem 1.2rem;
+                        background: #ffebee;
+                        color: #c62828;
+                        border: 1px solid #ef9a9a;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                        font-weight: 600;
+                        white-space: nowrap;
+                      " onmouseover="this.style.background='#ffcdd2'" 
+                         onmouseout="this.style.background='#ffebee'">
+                        🗑️ Supprimer
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+          
+          <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;">
+            <button onclick="window.clearAllPDFHistory()" style="
+              padding: 0.75rem 1.5rem;
+              background: #ffebee;
+              color: #c62828;
+              border: 1px solid #ef9a9a;
+              border-radius: 8px;
+              font-size: 0.95rem;
+              font-weight: 600;
+              cursor: pointer;
+              transition: background 0.2s;
+            " onmouseover="this.style.background='#ffcdd2'" 
+               onmouseout="this.style.background='#ffebee'">
+              🗑️ Tout supprimer
+            </button>
+            <button id="modal-close-pdf-history" style="
+              padding: 0.75rem 1.5rem;
+              background: #00783C;
+              color: white;
+              border: none;
+              border-radius: 8px;
+              font-size: 0.95rem;
+              font-weight: 600;
+              cursor: pointer;
+              transition: background 0.2s;
+            " onmouseover="this.style.background='#005a2c'" 
+               onmouseout="this.style.background='#00783C'">
+              Fermer
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Event handlers globaux
+      window.downloadArchivedPDF = (timestamp) => {
+        const entry = pdfHistory.find(p => p.timestamp === timestamp);
+        if (entry) {
+          const link = document.createElement('a');
+          link.href = entry.pdfData;
+          link.download = entry.filename;
+          link.click();
+        }
+      };
+      
+      window.deleteArchivedPDF = (timestamp) => {
+        if (confirm('⚠️ Voulez-vous vraiment supprimer ce PDF archivé ?\n\nCette action est irréversible.')) {
+          pdfHistory = pdfHistory.filter(p => p.timestamp !== timestamp);
+          localStorage.setItem(historyKey, JSON.stringify(pdfHistory));
+          document.body.removeChild(modal);
+          showPDFHistoryModal();
+        }
+      };
+      
+      window.clearAllPDFHistory = () => {
+        if (confirm('⚠️ ATTENTION !\n\nVoulez-vous vraiment supprimer TOUS les PDF archivés ?\n\nCette action est irréversible.')) {
+          localStorage.removeItem(historyKey);
+          document.body.removeChild(modal);
+          showPDFHistoryModal();
+        }
+      };
+      
+      document.getElementById('modal-close-pdf-history').addEventListener('click', () => {
+        document.body.removeChild(modal);
+      });
+      
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          document.body.removeChild(modal);
+        }
+      });
     }
 
     // ==================== DRAG & DROP ====================
@@ -1413,6 +1692,9 @@
           </div>
           
           <div class="header-right">
+            <button class="btn btn-secondary" id="btn-pdf-archives">
+              📚 Archives PDF
+            </button>
             <button class="btn btn-secondary" id="btn-manage-employees">
               👥 Gérer employés
             </button>
@@ -1556,6 +1838,7 @@
       });
 
       document.getElementById('btn-reset').addEventListener('click', resetPlanning);
+      document.getElementById('btn-pdf-archives').addEventListener('click', showPDFHistoryModal);
       document.getElementById('btn-export').addEventListener('click', exportPDF);
       document.getElementById('btn-manage-employees').addEventListener('click', showEmployeeManagementModal);
 
