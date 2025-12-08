@@ -431,6 +431,40 @@
       background: #fff8f8;
     }
 
+    /* Styles pour les postes Bio */
+    .production-line.bio-line {
+      border-color: #4caf50;
+      background: #f1f8e9;
+    }
+
+    .production-line.bio-line:hover {
+      border-color: #388e3c;
+      box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+    }
+
+    .production-line.bio-line .line-header {
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      border-bottom-color: #a5d6a7;
+    }
+
+    .production-line.bio-line .line-name {
+      color: #2e7d32;
+    }
+
+    .production-line.bio-line.drag-over {
+      border-color: #2e7d32;
+      box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.25);
+    }
+
+    .production-line.bio-line.over-capacity {
+      border-color: #e53935;
+      background: #fff8f8;
+    }
+
+    .production-line.bio-line.over-capacity .line-header {
+      background: #ffebee;
+    }
+
     .line-header {
       display: flex;
       align-items: center;
@@ -657,7 +691,8 @@
       { id: 'e36', name: 'BALLIEU JENNIFER AGO', competence: 'Production' },
     ];
 
-    const lines = [
+    // Postes standard (18 postes de base + 2 nouveaux)
+    const standardLines = [
       { id: 'l1', name: 'Poste 1', defaultCapacity: 7 },
       { id: 'l2', name: 'Poste 2', defaultCapacity: 7 },
       { id: 'l3', name: 'Poste 3', defaultCapacity: 7 },
@@ -676,7 +711,21 @@
       { id: 'l16', name: 'Poste 16', defaultCapacity: 7 },
       { id: 'l17', name: 'Poste 17', defaultCapacity: 7 },
       { id: 'l18', name: 'Poste 18', defaultCapacity: 7 },
+      { id: 'l19', name: 'Équipe tournante', defaultCapacity: 5 },
+      { id: 'l20', name: 'SDB', defaultCapacity: 5 },
     ];
+
+    // Postes Bio supplémentaires (3 postes + 2 nouveaux)
+    const bioExtraLines = [
+      { id: 'bio1', name: 'Contrôle', defaultCapacity: 3, isBio: true },
+      { id: 'bio2', name: 'Contrôle Boyaux', defaultCapacity: 3, isBio: true },
+      { id: 'bio3', name: 'Contrôle Bio', defaultCapacity: 3, isBio: true },
+      { id: 'bio4', name: 'Équipe tournante', defaultCapacity: 5, isBio: true },
+      { id: 'bio5', name: 'SDB', defaultCapacity: 5, isBio: true },
+    ];
+
+    // Variable lines dynamique selon le mode
+    let lines = [...standardLines];
 
     // ==================== GESTION EMPLOYÉS ====================
     function importEmployeesFromExcel() {
@@ -925,12 +974,22 @@
     let state = {
       currentDate: new Date().toISOString().split('T')[0],
       currentShift: 'matin', // 'matin' ou 'apres-midi'
+      productionMode: 'standard', // 'standard' ou 'bio'
       assignments: {}, // { lineId: [employeeId, ...] }
       capacities: {},  // { lineId: number }
       searchQuery: '',
       draggedEmployee: null,
       logoDataUrl: null, // Logo en base64
     };
+
+    // Fonction pour mettre à jour les lignes selon le mode
+    function updateLines() {
+      if (state.productionMode === 'bio') {
+        lines = [...standardLines, ...bioExtraLines];
+      } else {
+        lines = [...standardLines];
+      }
+    }
 
     // ==================== CHARGEMENT LOGO ====================
     function loadLogoImage() {
@@ -951,7 +1010,7 @@
           }
         };
         img.onerror = () => reject(new Error('Erreur chargement logo'));
-        img.src = 'Logo-Plukon.png';
+        img.src = 'logo-plukon.png';
       });
     }
 
@@ -1157,6 +1216,9 @@
 
     // ==================== EXPORT PDF ====================
     function exportPDF() {
+      // S'assurer d'utiliser les bonnes lignes selon le mode
+      updateLines();
+      
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       
@@ -1209,12 +1271,13 @@
       pdf.setFont('helvetica', 'bold');
       pdf.text(formatDate(state.currentDate), margin, yPosition);
       
-      // Équipe
-      const shiftText = state.currentShift === 'matin' ? 'Équipe Matin (06:30)' : 'Équipe Après-midi (14:41)';
-      pdf.setFontSize(12);
+      // Équipe et Mode
+      const shiftText = state.currentShift === 'matin' ? 'Matin (06:30)' : 'Après-midi (14:41)';
+      const modeText = state.productionMode === 'bio' ? 'Bio' : 'Standard';
+      pdf.setFontSize(11);
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(0, 150, 57);
-      pdf.text(shiftText, pageWidth - margin - 60, yPosition);
+      pdf.text(`${shiftText} | ${modeText}`, pageWidth - margin - 45, yPosition);
       
       yPosition += 8;
       
@@ -1329,7 +1392,7 @@
       };
       reader.readAsDataURL(pdfBlob);
       
-      pdf.save(`planning-plukon-${state.currentDate}-${state.currentShift}.pdf`);
+      pdf.save(`planning-plukon-${state.currentDate}-${state.currentShift}-${state.productionMode}.pdf`);
     }
     
     // ==================== SAUVEGARDE PDF DANS HISTORIQUE ====================
@@ -1346,32 +1409,24 @@
         pdfHistory = [];
       }
       
-      // Créer l'entrée PDF
+      // Créer l'entrée PDF avec timestamp unique
+      const timestamp = new Date().toISOString();
       const pdfEntry = {
         date: state.currentDate,
         shift: state.currentShift,
-        timestamp: new Date().toISOString(),
-        filename: `planning-plukon-${state.currentDate}-${state.currentShift}.pdf`,
+        mode: state.productionMode,
+        timestamp: timestamp,
+        filename: `planning-plukon-${state.currentDate}-${state.currentShift}-${state.productionMode}-${timestamp.replace(/[:.]/g, '-')}.pdf`,
         pdfData: pdfBase64,
         totalEmployees: getAssignedEmployeeIds().size,
       };
       
-      // Vérifier si une entrée existe déjà pour cette date/équipe
-      const existingIndex = pdfHistory.findIndex(p => 
-        p.date === state.currentDate && p.shift === state.currentShift
-      );
+      // Toujours ajouter une nouvelle entrée (ne pas remplacer)
+      pdfHistory.unshift(pdfEntry);
       
-      if (existingIndex >= 0) {
-        // Remplacer l'entrée existante
-        pdfHistory[existingIndex] = pdfEntry;
-      } else {
-        // Ajouter une nouvelle entrée
-        pdfHistory.unshift(pdfEntry);
-      }
-      
-      // Limiter à 30 PDFs (pour ne pas surcharger le localStorage)
-      if (pdfHistory.length > 30) {
-        pdfHistory = pdfHistory.slice(0, 30);
+      // Limiter à 50 PDFs (pour ne pas surcharger le localStorage)
+      if (pdfHistory.length > 50) {
+        pdfHistory = pdfHistory.slice(0, 50);
       }
       
       try {
@@ -1436,7 +1491,7 @@
               <strong>${pdfHistory.length}</strong> PDF sauvegardé(s)
             </p>
             <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #666;">
-              Chaque PDF est automatiquement archivé lors de l'export
+              Chaque export crée une nouvelle archive. Vous pouvez avoir plusieurs versions du même planning.
             </p>
           </div>
           
@@ -1459,10 +1514,17 @@
                 });
                 const formattedTime = date.toLocaleTimeString('fr-FR', { 
                   hour: '2-digit', 
-                  minute: '2-digit' 
+                  minute: '2-digit',
+                  second: '2-digit'
                 });
                 const shiftLabel = entry.shift === 'matin' ? '🌅 Matin (06:30)' : '🌆 Après-midi (14:41)';
                 const planningDate = formatDate(entry.date);
+                
+                // Compter combien d'exports pour cette date/équipe
+                const sameConfig = pdfHistory.filter(p => 
+                  p.date === entry.date && p.shift === entry.shift
+                );
+                const versionNumber = sameConfig.length - sameConfig.findIndex(p => p.timestamp === entry.timestamp);
                 
                 return `
                   <div style="
@@ -1479,9 +1541,23 @@
                     <div style="flex: 1;">
                       <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
                         <span style="font-size: 1.5rem;">📄</span>
-                        <div>
-                          <div style="font-weight: 700; color: #00783C; font-size: 1.1rem; margin-bottom: 0.25rem;">
-                            ${planningDate}
+                        <div style="flex: 1;">
+                          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                            <span style="font-weight: 700; color: #00783C; font-size: 1.1rem;">
+                              ${planningDate}
+                            </span>
+                            ${sameConfig.length > 1 ? `
+                              <span style="
+                                background: #e8f5ec;
+                                color: #00783C;
+                                padding: 0.15rem 0.5rem;
+                                border-radius: 12px;
+                                font-size: 0.75rem;
+                                font-weight: 600;
+                              ">
+                                Version ${versionNumber}
+                              </span>
+                            ` : ''}
                           </div>
                           <div style="font-size: 0.9rem; color: #666; font-weight: 500;">
                             ${shiftLabel}
@@ -1489,7 +1565,7 @@
                         </div>
                       </div>
                       <div style="font-size: 0.85rem; color: #999; margin-top: 0.5rem;">
-                        👥 ${entry.totalEmployees} employé(s) • 💾 Archivé le ${formattedDate} à ${formattedTime}
+                        👥 ${entry.totalEmployees} employé(s) • 💾 Exporté le ${formattedDate} à ${formattedTime}
                       </div>
                     </div>
                     <div style="display: flex; gap: 0.5rem; flex-direction: column;">
@@ -1691,6 +1767,14 @@
             </select>
           </div>
           
+          <div class="header-center">
+            <span class="date-label">Mode :</span>
+            <select class="date-input" id="mode-select" style="cursor: pointer;">
+              <option value="standard" ${state.productionMode === 'standard' ? 'selected' : ''}>📦 Standard</option>
+              <option value="bio" ${state.productionMode === 'bio' ? 'selected' : ''}>🌿 Bio</option>
+            </select>
+          </div>
+          
           <div class="header-right">
             <button class="btn btn-secondary" id="btn-pdf-archives">
               📚 Archives PDF
@@ -1782,10 +1866,10 @@
                 const overCapacity = lineEmps.length > capacity;
                 
                 return `
-                  <div class="production-line ${overCapacity ? 'over-capacity' : ''}" data-line-id="${line.id}">
+                  <div class="production-line ${overCapacity ? 'over-capacity' : ''} ${line.isBio ? 'bio-line' : ''}" data-line-id="${line.id}">
                     <div class="line-header">
                       <div class="line-info">
-                        <h3 class="line-name">${line.name}</h3>
+                        <h3 class="line-name">${line.isBio ? '🌿 ' : ''}${line.name}</h3>
                         <div class="line-stats">
                           ${overCapacity ? '<span class="capacity-warning">⚠️</span>' : ''}
                         </div>
@@ -1834,6 +1918,12 @@
 
       document.getElementById('shift-select').addEventListener('change', (e) => {
         state.currentShift = e.target.value;
+        render();
+      });
+
+      document.getElementById('mode-select').addEventListener('change', (e) => {
+        state.productionMode = e.target.value;
+        updateLines();
         render();
       });
 
