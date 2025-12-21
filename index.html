@@ -402,7 +402,7 @@
 
     .lines-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(5, 1fr);
       gap: 1rem;
     }
 
@@ -490,6 +490,14 @@
       font-size: 0.95rem;
       font-weight: 600;
       color: #333;
+    }
+
+    .line-description {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: #666;
+      font-style: italic;
+      margin-top: 0.15rem;
     }
 
     .line-stats {
@@ -618,6 +626,25 @@
       }
     }
 
+
+    @media (max-width: 1400px) {
+      .lines-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .lines-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .lines-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
     @media (max-width: 768px) {
       .header-divider, .page-title {
         display: none;
@@ -693,24 +720,24 @@
 
     // Postes standard (18 postes de base + 2 nouveaux + KK)
     const standardLines = [
-      { id: 'l1', name: 'Poste 1', defaultCapacity: 7 },
-      { id: 'l2', name: 'Poste 2', defaultCapacity: 7 },
-      { id: 'l3', name: 'Poste 3', defaultCapacity: 7 },
-      { id: 'l4', name: 'Poste 4', defaultCapacity: 7 },
-      { id: 'l5', name: 'Poste 5', defaultCapacity: 7 },
-      { id: 'l6', name: 'Poste 6', defaultCapacity: 7 },
-      { id: 'l7', name: 'Poste 7', defaultCapacity: 7 },
-      { id: 'l8', name: 'Poste 8', defaultCapacity: 7 },
-      { id: 'l9', name: 'Poste 9', defaultCapacity: 7 },
-      { id: 'l10', name: 'Poste 10', defaultCapacity: 7 },
-      { id: 'l11', name: 'Poste 11', defaultCapacity: 7 },
-      { id: 'l12', name: 'Poste 12', defaultCapacity: 7 },
-      { id: 'l13', name: 'Poste 13', defaultCapacity: 7 },
-      { id: 'l14', name: 'Poste 14', defaultCapacity: 7 },
-      { id: 'l15', name: 'Poste 15', defaultCapacity: 7 },
-      { id: 'l16', name: 'Poste 16', defaultCapacity: 7 },
-      { id: 'l17', name: 'Poste 17', defaultCapacity: 7 },
-      { id: 'l18', name: 'Poste 18', defaultCapacity: 7 },
+      { id: 'l1', name: 'Poste 1', defaultCapacity: 5 },
+      { id: 'l2', name: 'Poste 2', defaultCapacity: 5 },
+      { id: 'l3', name: 'Poste 3', defaultCapacity: 5 },
+      { id: 'l4', name: 'Poste 4', defaultCapacity: 5 },
+      { id: 'l5', name: 'Poste 5', defaultCapacity: 5 },
+      { id: 'l6', name: 'Poste 6', defaultCapacity: 5 },
+      { id: 'l7', name: 'Poste 7', defaultCapacity: 5 },
+      { id: 'l8', name: 'Poste 8', defaultCapacity: 5 },
+      { id: 'l9', name: 'Poste 9', defaultCapacity: 5 },
+      { id: 'l10', name: 'Poste 10', defaultCapacity: 5 },
+      { id: 'l11', name: 'Poste 11', defaultCapacity: 5 },
+      { id: 'l12', name: 'Poste 12', defaultCapacity: 5 },
+      { id: 'l13', name: 'Poste 13', defaultCapacity: 5 },
+      { id: 'l14', name: 'Poste 14', defaultCapacity: 5 },
+      { id: 'l15', name: 'Poste 15', defaultCapacity: 5 },
+      { id: 'l16', name: 'Poste 16', defaultCapacity: 5 },
+      { id: 'l17', name: 'Poste 17', defaultCapacity: 5 },
+      { id: 'l18', name: 'Poste 18', defaultCapacity: 5 },
       { id: 'l19', name: 'Équipe tournante', defaultCapacity: 5 },
       { id: 'l20', name: 'SDB', defaultCapacity: 5 },
       { id: 'l21', name: 'KK', defaultCapacity: 5 },
@@ -718,13 +745,26 @@
 
     // Postes Bio supplémentaires (3 postes de contrôle uniquement)
     const bioExtraLines = [
-      { id: 'bio1', name: 'Contrôle', defaultCapacity: 3, isBio: true },
+      { id: 'bio1', name: 'Contrôle Ailes', defaultCapacity: 3, isBio: true },
       { id: 'bio2', name: 'Contrôle Boyaux', defaultCapacity: 3, isBio: true },
       { id: 'bio3', name: 'Contrôle Bio', defaultCapacity: 3, isBio: true },
     ];
 
     // Variable lines dynamique selon le mode
     let lines = [...standardLines];
+
+    // Descriptions de postes spécifiques
+    const posteDescriptions = {
+      'l1': 'Poulets rangés',
+      'l2': 'Accrochage',
+      'l3': 'Poulets élastiques',
+      'l5': 'Poulets élastiques',
+      'l6': 'Poitrines',
+      'l10': 'Préparation',
+      'l12': 'Front halves',
+      'l14': 'Cuisses 5kg',
+      'l18': 'Pilons'
+    };
 
     // ==================== GESTION EMPLOYÉS ====================
     function importEmployeesFromExcel() {
@@ -1223,164 +1263,242 @@
       
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 15;
+      const margin = 10;
       const contentWidth = pageWidth - margin * 2;
       
       // Couleurs charte Plukon
       const plukonGreen = [0, 150, 57];  // #009639
       const plukonRed = [237, 28, 36];    // #ED1C24
       
+      // Descriptions de postes spécifiques
+      const posteDescriptions = {
+        'l1': 'Poulets rangés',
+        'l2': 'Accrochage',
+        'l3': 'Poulets élastiques',
+        'l5': 'Poulets élastiques',
+        'l6': 'Poitrines',
+        'l10': 'Préparation',
+        'l12': 'Front halves',
+        'l14': 'Cuisses 5kg',
+        'l18': 'Pilons'
+      };
+      
       let yPosition = margin;
       
       // En-tête avec couleur Plukon
       pdf.setFillColor(...plukonGreen);
-      pdf.rect(0, 0, pageWidth, 30, 'F');
+      pdf.rect(0, 0, pageWidth, 20, 'F');
       
       // Logo à gauche (si disponible)
       if (state.logoDataUrl) {
         try {
-          pdf.addImage(state.logoDataUrl, 'PNG', margin, 5, 50, 20);
+          pdf.addImage(state.logoDataUrl, 'PNG', margin, 3, 35, 14);
         } catch (e) {
           console.error('Erreur ajout logo:', e);
         }
       } else {
         // Texte de fallback si pas de logo
         pdf.setTextColor(255, 255, 255);
-        pdf.setFontSize(18);
+        pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
-        pdf.text('PLUKON', margin, 14);
+        pdf.text('PLUKON', margin, 12);
         
-        pdf.setFontSize(10);
+        pdf.setFontSize(8);
         pdf.setFont('helvetica', 'normal');
         pdf.setTextColor(...plukonRed);
-        pdf.text('food group', margin, 21);
+        pdf.text('food group', margin, 17);
       }
       
       // Texte à droite
       pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(12);
+      pdf.setFontSize(10);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('PLANNING DE PRODUCTION', pageWidth - margin - 65, 18);
+      pdf.text('PLANNING DE PRODUCTION', pageWidth - margin - 55, 13);
       
-      yPosition = 40;
+      yPosition = 25;
       
-      // Date
+      // Date et infos en ligne
       pdf.setTextColor(40, 40, 40);
-      pdf.setFontSize(14);
+      pdf.setFontSize(9);
       pdf.setFont('helvetica', 'bold');
       pdf.text(formatDate(state.currentDate), margin, yPosition);
       
       // Équipe et Mode
       const shiftText = state.currentShift === 'matin' ? 'Matin (06:30)' : 'Après-midi (14:41)';
       const modeText = state.productionMode === 'bio' ? 'Bio' : 'Standard';
-      pdf.setFontSize(11);
+      pdf.setFontSize(8);
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(0, 150, 57);
-      pdf.text(`${shiftText} | ${modeText}`, pageWidth - margin - 45, yPosition);
+      pdf.text(`${shiftText} | ${modeText}`, pageWidth - margin - 40, yPosition);
       
-      yPosition += 8;
+      yPosition += 5;
       
-      // Ligne de séparation
-      pdf.setDrawColor(...plukonGreen);
-      pdf.setLineWidth(0.8);
-      pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+      // Configuration de la grille 5 colonnes
+      const cols = 5;
+      const totalLines = lines.length;
+      const rows = Math.ceil(totalLines / cols);
       
-      yPosition += 10;
+      // Calculer la hauteur disponible
+      const headerHeight = yPosition;
+      const footerHeight = 8;
+      const availableHeight = pageHeight - headerHeight - footerHeight - margin;
       
-      // En-têtes du tableau
-      const colLineName = margin;
-      const colLineNameWidth = 35;
-      const colEmployees = margin + colLineNameWidth;
+      // Calculer la taille des cellules pour tout faire tenir
+      const cellHeight = availableHeight / rows;
+      const cellWidth = contentWidth / cols;
+      const cellPadding = 1.5;
       
-      pdf.setFillColor(...plukonGreen);
-      pdf.rect(margin, yPosition, contentWidth, 10, 'F');
+      let currentCol = 0;
+      let currentRow = 0;
       
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Poste', colLineName + 3, yPosition + 6.5);
-      pdf.text('Employés affectés', colEmployees + 3, yPosition + 6.5);
-      
-      yPosition += 10;
-      
-      // Lignes du tableau
-      pdf.setFontSize(9.5);
-      let alternateRow = false;
-      
-      lines.forEach(line => {
+      lines.forEach((line, index) => {
         const lineEmployeeIds = getLineEmployees(line.id);
         const lineEmployees = lineEmployeeIds.map(id => employees.find(e => e.id === id)).filter(Boolean);
         const capacity = getLineCapacity(line.id);
         const overCapacity = lineEmployees.length > capacity;
         
-        const employeeCount = Math.max(lineEmployees.length, 1);
-        const lineHeight = employeeCount * 5.5 + 3;
+        // Calculer position de la cellule
+        const x = margin + currentCol * cellWidth;
+        const y = yPosition + currentRow * cellHeight;
         
-        // Nouvelle page si nécessaire
-        if (yPosition + lineHeight > pageHeight - 30) {
-          pdf.addPage();
-          yPosition = margin;
-          
-          pdf.setFillColor(...plukonGreen);
-          pdf.rect(margin, yPosition, contentWidth, 10, 'F');
-          pdf.setTextColor(255, 255, 255);
-          pdf.setFontSize(11);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Poste', colLineName + 3, yPosition + 6.5);
-          pdf.text('Employés affectés', colEmployees + 3, yPosition + 6.5);
-          yPosition += 10;
-          pdf.setFontSize(9.5);
-        }
-        
-        // Fond alterné
-        if (alternateRow) {
-          pdf.setFillColor(248, 248, 248);
-          pdf.rect(margin, yPosition, contentWidth, lineHeight, 'F');
-        }
-        
-        // Alerte visuelle si surcapacité
+        // Dessiner la carte du poste
+        // Fond
         if (overCapacity) {
           pdf.setFillColor(255, 245, 245);
-          pdf.rect(margin, yPosition, contentWidth, lineHeight, 'F');
+        } else {
+          pdf.setFillColor(255, 255, 255);
         }
+        pdf.rect(x + cellPadding, y, cellWidth - cellPadding * 2, cellHeight, 'F');
         
-        // Bordures
+        // Bordure
         pdf.setDrawColor(220, 220, 220);
         pdf.setLineWidth(0.2);
-        pdf.rect(margin, yPosition, contentWidth, lineHeight, 'S');
-        pdf.line(colEmployees, yPosition, colEmployees, yPosition + lineHeight);
+        pdf.rect(x + cellPadding, y, cellWidth - cellPadding * 2, cellHeight, 'S');
         
-        // Nom de la ligne avec capacité
-        pdf.setTextColor(40, 40, 40);
+        // En-tête du poste (fond vert) - hauteur plus grande
+        const headerCellHeight = Math.min(8, cellHeight * 0.25);
+        pdf.setFillColor(...plukonGreen);
+        pdf.rect(x + cellPadding, y, cellWidth - cellPadding * 2, headerCellHeight, 'F');
+        
+        // Nom du poste - TAILLE TRÈS AUGMENTÉE
+        pdf.setTextColor(255, 255, 255);
+        let fontSize = Math.min(10, Math.max(8.5, cellHeight * 0.2));
         pdf.setFont('helvetica', 'bold');
-        pdf.text(line.name, colLineName + 3, yPosition + 5);
         
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(8);
-        pdf.setTextColor(100, 100, 100);
-        const capacityText = `(${lineEmployees.length}/${capacity})`;
-        if (overCapacity) {
-          pdf.setTextColor(...plukonRed);
-          pdf.setFont('helvetica', 'bold');
+        // Réduire la taille de police si le texte est trop long au lieu de tronquer
+        let displayName = line.name;
+        const maxWidth = cellWidth - cellPadding * 2 - 15;
+        
+        // Ajuster la taille de police pour que le texte rentre
+        pdf.setFontSize(fontSize);
+        while (pdf.getTextWidth(displayName) > maxWidth && fontSize > 6) {
+          fontSize -= 0.5;
+          pdf.setFontSize(fontSize);
         }
-        pdf.text(capacityText, colLineName + 3, yPosition + 9.5);
         
-        // Liste des employés
-        pdf.setFontSize(10);
+        // Si même avec la plus petite police ça ne rentre pas, alors tronquer
+        if (pdf.getTextWidth(displayName) > maxWidth) {
+          while (pdf.getTextWidth(displayName) > maxWidth && displayName.length > 5) {
+            displayName = displayName.substring(0, displayName.length - 1);
+          }
+          if (displayName !== line.name) displayName += '...';
+        }
+        
+        // Afficher le nom de la ligne
+        const textY = posteDescriptions[line.id] ? y + headerCellHeight * 0.5 : y + headerCellHeight * 0.65;
+        pdf.text(displayName, x + cellPadding + 2, textY);
+        
+        // Afficher la description du poste si elle existe
+        if (posteDescriptions[line.id]) {
+          let descFontSize = Math.max(6, fontSize * 0.75);
+          pdf.setFontSize(descFontSize);
+          pdf.setFont('helvetica', 'normal');
+          
+          // Réduire la taille si la description est trop longue
+          let description = posteDescriptions[line.id];
+          while (pdf.getTextWidth(description) > maxWidth && descFontSize > 5) {
+            descFontSize -= 0.3;
+            pdf.setFontSize(descFontSize);
+          }
+          
+          pdf.text(description, x + cellPadding + 2, y + headerCellHeight * 0.82);
+        }
+        
+        // Capacité (à droite) - TAILLE TRÈS AUGMENTÉE
+        const capacityText = `${lineEmployees.length}/${capacity}`;
+        const capacityWidth = pdf.getTextWidth(capacityText);
+        if (overCapacity) {
+          pdf.setTextColor(255, 200, 200);
+        }
+        pdf.text(capacityText, x + cellWidth - cellPadding - capacityWidth - 2, y + headerCellHeight * 0.65);
+        
+        // Liste des employés - TAILLE TRÈS AUGMENTÉE
         pdf.setFont('helvetica', 'normal');
+        const employeeFontSize = Math.min(9, Math.max(7.5, cellHeight * 0.16));
+        pdf.setFontSize(employeeFontSize);
+        pdf.setTextColor(40, 40, 40);
+        
+        const employeeStartY = y + headerCellHeight + 3;
+        const lineSpacing = employeeFontSize * 0.6;
+        
         if (lineEmployees.length === 0) {
           pdf.setTextColor(160, 160, 160);
-          pdf.text('—', colEmployees + 3, yPosition + 5);
+          pdf.setFontSize(employeeFontSize - 0.5);
+          pdf.text('Aucun employé', x + cellPadding + 2, employeeStartY);
         } else {
-          pdf.setTextColor(40, 40, 40);
-          lineEmployees.forEach((employee, index) => {
-            pdf.text(`${employee.name}`, colEmployees + 3, yPosition + 5 + index * 5.5);
+          // Calculer combien d'employés on peut afficher
+          const availableEmployeeHeight = cellHeight - headerCellHeight - 4.5;
+          const maxEmployees = Math.floor(availableEmployeeHeight / (employeeFontSize + lineSpacing));
+          
+          lineEmployees.slice(0, maxEmployees).forEach((employee, idx) => {
+            const employeeY = employeeStartY + idx * (employeeFontSize + lineSpacing);
+            const maxNameWidth = cellWidth - cellPadding * 2 - 3.5;
+            let employeeName = employee.name;
+            
+            // Tronquer le nom si trop long
+            while (pdf.getTextWidth(`• ${employeeName}`) > maxNameWidth && employeeName.length > 5) {
+              employeeName = employeeName.substring(0, employeeName.length - 1);
+            }
+            if (employeeName !== employee.name) employeeName += '...';
+            
+            pdf.text(`• ${employeeName}`, x + cellPadding + 2, employeeY);
           });
+          
+          if (lineEmployees.length > maxEmployees) {
+            pdf.setTextColor(100, 100, 100);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(employeeFontSize);
+            const moreY = employeeStartY + maxEmployees * (employeeFontSize + lineSpacing);
+            pdf.text(`+${lineEmployees.length - maxEmployees}`, x + cellPadding + 2, moreY);
+          }
         }
         
-        yPosition += lineHeight;
-        alternateRow = !alternateRow;
+        // Passer à la colonne suivante
+        currentCol++;
+        if (currentCol >= cols) {
+          currentCol = 0;
+          currentRow++;
+        }
       });
+      
+      // Pied de page
+      const footerY = pageHeight - 5;
+      
+      // Ligne de séparation
+      pdf.setDrawColor(...plukonGreen);
+      pdf.setLineWidth(0.3);
+      pdf.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
+      
+      pdf.setFontSize(7);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Plukon Mouscron', margin, footerY);
+      
+      const now = new Date();
+      const printDate = now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      pdf.text(`Imprimé le ${printDate}`, pageWidth / 2 - 20, footerY);
+      
+      const totalAssigned = getAssignedEmployeeIds().size;
+      pdf.text(`${totalAssigned} employés affectés`, pageWidth - margin - 25, footerY);
       
       // Sauvegarder le PDF dans l'historique
       const pdfBlob = pdf.output('blob');
@@ -1868,7 +1986,10 @@
                   <div class="production-line ${overCapacity ? 'over-capacity' : ''} ${line.isBio ? 'bio-line' : ''}" data-line-id="${line.id}">
                     <div class="line-header">
                       <div class="line-info">
-                        <h3 class="line-name">${line.isBio ? '🌿 ' : ''}${line.name}</h3>
+                        <div>
+                          <h3 class="line-name">${line.isBio ? '🌿 ' : ''}${line.name}</h3>
+                          ${posteDescriptions[line.id] ? `<div class="line-description">${posteDescriptions[line.id]}</div>` : ''}
+                        </div>
                         <div class="line-stats">
                           ${overCapacity ? '<span class="capacity-warning">⚠️</span>' : ''}
                         </div>
