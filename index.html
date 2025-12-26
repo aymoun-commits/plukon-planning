@@ -1259,7 +1259,7 @@
       updateLines();
       
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
@@ -1285,53 +1285,53 @@
       
       let yPosition = margin;
       
-      // En-tête avec couleur Plukon
+      // En-tête avec couleur Plukon - RÉDUIT
       pdf.setFillColor(...plukonGreen);
-      pdf.rect(0, 0, pageWidth, 20, 'F');
+      pdf.rect(0, 0, pageWidth, 12, 'F');
       
       // Logo à gauche (si disponible)
       if (state.logoDataUrl) {
         try {
-          pdf.addImage(state.logoDataUrl, 'PNG', margin, 3, 35, 14);
+          pdf.addImage(state.logoDataUrl, 'PNG', margin, 2, 20, 8);
         } catch (e) {
           console.error('Erreur ajout logo:', e);
         }
       } else {
         // Texte de fallback si pas de logo
         pdf.setTextColor(255, 255, 255);
-        pdf.setFontSize(14);
+        pdf.setFontSize(10);
         pdf.setFont('helvetica', 'bold');
-        pdf.text('PLUKON', margin, 12);
+        pdf.text('PLUKON', margin, 8);
         
-        pdf.setFontSize(8);
+        pdf.setFontSize(6);
         pdf.setFont('helvetica', 'normal');
         pdf.setTextColor(...plukonRed);
-        pdf.text('food group', margin, 17);
+        pdf.text('food group', margin + 16, 8);
       }
       
       // Texte à droite
       pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(10);
+      pdf.setFontSize(8);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('PLANNING DE PRODUCTION', pageWidth - margin - 55, 13);
+      pdf.text('PLANNING DE PRODUCTION', pageWidth - margin - 45, 8);
       
-      yPosition = 25;
+      yPosition = 16;
       
-      // Date et infos en ligne
+      // Date et infos en ligne - PLUS COMPACT
       pdf.setTextColor(40, 40, 40);
-      pdf.setFontSize(9);
+      pdf.setFontSize(7);
       pdf.setFont('helvetica', 'bold');
       pdf.text(formatDate(state.currentDate), margin, yPosition);
       
       // Équipe et Mode
       const shiftText = state.currentShift === 'matin' ? 'Matin (06:30)' : 'Après-midi (14:41)';
       const modeText = state.productionMode === 'bio' ? 'Bio' : 'Standard';
-      pdf.setFontSize(8);
+      pdf.setFontSize(6);
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(0, 150, 57);
-      pdf.text(`${shiftText} | ${modeText}`, pageWidth - margin - 40, yPosition);
+      pdf.text(`${shiftText} | ${modeText}`, pageWidth - margin - 35, yPosition);
       
-      yPosition += 5;
+      yPosition += 4;
       
       // Configuration de la grille 5 colonnes
       const cols = 5;
@@ -1348,12 +1348,45 @@
       const cellWidth = contentWidth / cols;
       const cellPadding = 1.5;
       
+      // Trouver le nombre maximum d'employés dans un poste pour harmoniser la taille de police
+      let maxEmployeesInAnyLine = 1;
+      lines.forEach(line => {
+        const lineEmployeeIds = getLineEmployees(line.id);
+        const lineEmployeesCount = lineEmployeeIds.length;
+        if (lineEmployeesCount > maxEmployeesInAnyLine) {
+          maxEmployeesInAnyLine = lineEmployeesCount;
+        }
+      });
+      
+      // Calculer le nombre de lignes nécessaires (2 prénoms par ligne)
+      const maxRowsNeeded = Math.ceil(maxEmployeesInAnyLine / 2);
+      
+      // Calculer la taille de police globale pour tous les postes
+      const headerCellHeight = Math.min(6, cellHeight * 0.18); // Réduit de 25% à 18%
+      const availableEmployeeHeight = cellHeight - headerCellHeight - 3; // Réduit le padding de 4.5 à 3
+      let globalEmployeeFontSize = 10; // Augmenté encore plus car on a plus d'espace
+      let globalLineSpacing = globalEmployeeFontSize * 0.12; // Réduit l'espacement
+      let totalHeight = maxRowsNeeded * (globalEmployeeFontSize + globalLineSpacing);
+      
+      // Réduire la taille de police jusqu'à ce que le maximum d'employés rentre
+      while (totalHeight > availableEmployeeHeight && globalEmployeeFontSize > 7) {
+        globalEmployeeFontSize -= 0.1;
+        globalLineSpacing = globalEmployeeFontSize * 0.12;
+        totalHeight = maxRowsNeeded * (globalEmployeeFontSize + globalLineSpacing);
+      }
+      
+      // S'assurer d'avoir au moins 7pt pour la lisibilité
+      globalEmployeeFontSize = Math.max(7, globalEmployeeFontSize);
+      globalLineSpacing = globalEmployeeFontSize * 0.12;
+      
       let currentCol = 0;
       let currentRow = 0;
       
       lines.forEach((line, index) => {
         const lineEmployeeIds = getLineEmployees(line.id);
-        const lineEmployees = lineEmployeeIds.map(id => employees.find(e => e.id === id)).filter(Boolean);
+        const lineEmployees = lineEmployeeIds
+          .map(id => employees.find(e => e.id === id))
+          .filter(emp => emp && emp.name); // Filtrer pour n'avoir que des objets valides avec un nom
         const capacity = getLineCapacity(line.id);
         const overCapacity = lineEmployees.length > capacity;
         
@@ -1375,14 +1408,14 @@
         pdf.setLineWidth(0.2);
         pdf.rect(x + cellPadding, y, cellWidth - cellPadding * 2, cellHeight, 'S');
         
-        // En-tête du poste (fond vert) - hauteur plus grande
-        const headerCellHeight = Math.min(8, cellHeight * 0.25);
+        // En-tête du poste (fond vert) - RÉDUIT pour plus d'espace aux prénoms
+        const headerCellHeight = Math.min(6, cellHeight * 0.18);
         pdf.setFillColor(...plukonGreen);
         pdf.rect(x + cellPadding, y, cellWidth - cellPadding * 2, headerCellHeight, 'F');
         
-        // Nom du poste - TAILLE TRÈS AUGMENTÉE
+        // Nom du poste - PLUS COMPACT
         pdf.setTextColor(255, 255, 255);
-        let fontSize = Math.min(10, Math.max(8.5, cellHeight * 0.2));
+        let fontSize = Math.min(8, Math.max(6.5, cellHeight * 0.15));
         pdf.setFont('helvetica', 'bold');
         
         // Réduire la taille de police si le texte est trop long au lieu de tronquer
@@ -1391,8 +1424,8 @@
         
         // Ajuster la taille de police pour que le texte rentre
         pdf.setFontSize(fontSize);
-        while (pdf.getTextWidth(displayName) > maxWidth && fontSize > 6) {
-          fontSize -= 0.5;
+        while (pdf.getTextWidth(displayName) > maxWidth && fontSize > 5) {
+          fontSize -= 0.3;
           pdf.setFontSize(fontSize);
         }
         
@@ -1405,26 +1438,27 @@
         }
         
         // Afficher le nom de la ligne
-        const textY = posteDescriptions[line.id] ? y + headerCellHeight * 0.5 : y + headerCellHeight * 0.65;
+        const textY = posteDescriptions[line.id] ? y + headerCellHeight * 0.5 : y + headerCellHeight * 0.7;
         pdf.text(displayName, x + cellPadding + 2, textY);
         
         // Afficher la description du poste si elle existe
         if (posteDescriptions[line.id]) {
-          let descFontSize = Math.max(6, fontSize * 0.75);
+          let descFontSize = Math.max(5, fontSize * 0.7);
           pdf.setFontSize(descFontSize);
           pdf.setFont('helvetica', 'normal');
           
           // Réduire la taille si la description est trop longue
           let description = posteDescriptions[line.id];
-          while (pdf.getTextWidth(description) > maxWidth && descFontSize > 5) {
-            descFontSize -= 0.3;
+          while (pdf.getTextWidth(description) > maxWidth && descFontSize > 4) {
+            descFontSize -= 0.2;
             pdf.setFontSize(descFontSize);
           }
           
-          pdf.text(description, x + cellPadding + 2, y + headerCellHeight * 0.82);
+          pdf.text(description, x + cellPadding + 2, y + headerCellHeight * 0.88);
         }
         
-        // Capacité (à droite) - TAILLE TRÈS AUGMENTÉE
+        // Capacité (à droite) - RÉDUIT
+        pdf.setFontSize(Math.min(7, fontSize));
         const capacityText = `${lineEmployees.length}/${capacity}`;
         const capacityWidth = pdf.getTextWidth(capacityText);
         if (overCapacity) {
@@ -1432,45 +1466,39 @@
         }
         pdf.text(capacityText, x + cellWidth - cellPadding - capacityWidth - 2, y + headerCellHeight * 0.65);
         
-        // Liste des employés - TAILLE TRÈS AUGMENTÉE
-        pdf.setFont('helvetica', 'normal');
-        const employeeFontSize = Math.min(9, Math.max(7.5, cellHeight * 0.16));
-        pdf.setFontSize(employeeFontSize);
-        pdf.setTextColor(40, 40, 40);
+        // Liste des employés - TAILLE HARMONISÉE ET LISIBLE
+        pdf.setFont('helvetica', 'bold'); // Changé de 'normal' à 'bold' pour meilleure visibilité
+        pdf.setTextColor(30, 30, 30); // Noir plus foncé pour meilleure lisibilité
+        pdf.setFontSize(globalEmployeeFontSize);
         
         const employeeStartY = y + headerCellHeight + 3;
-        const lineSpacing = employeeFontSize * 0.6;
         
         if (lineEmployees.length === 0) {
           pdf.setTextColor(160, 160, 160);
-          pdf.setFontSize(employeeFontSize - 0.5);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(globalEmployeeFontSize);
           pdf.text('Aucun employé', x + cellPadding + 2, employeeStartY);
         } else {
-          // Calculer combien d'employés on peut afficher
-          const availableEmployeeHeight = cellHeight - headerCellHeight - 4.5;
-          const maxEmployees = Math.floor(availableEmployeeHeight / (employeeFontSize + lineSpacing));
+          // Afficher les prénoms avec 2 prénoms par ligne
+          const maxNameWidth = cellWidth - cellPadding * 2 - 3.5;
+          const colWidth = maxNameWidth / 2; // Diviser en 2 colonnes
           
-          lineEmployees.slice(0, maxEmployees).forEach((employee, idx) => {
-            const employeeY = employeeStartY + idx * (employeeFontSize + lineSpacing);
-            const maxNameWidth = cellWidth - cellPadding * 2 - 3.5;
-            let employeeName = employee.name;
+          lineEmployees.forEach((employee, idx) => {
+            const rowIndex = Math.floor(idx / 2); // Quelle ligne (0, 1, 2, ...)
+            const colIndex = idx % 2; // Quelle colonne (0 ou 1)
+            const employeeY = employeeStartY + rowIndex * (globalEmployeeFontSize + globalLineSpacing);
+            const employeeX = x + cellPadding + 2 + (colIndex * colWidth);
             
-            // Tronquer le nom si trop long
-            while (pdf.getTextWidth(`• ${employeeName}`) > maxNameWidth && employeeName.length > 5) {
-              employeeName = employeeName.substring(0, employeeName.length - 1);
-            }
-            if (employeeName !== employee.name) employeeName += '...';
+            // Extraire uniquement le prénom (premier mot)
+            let fullName = employee && employee.name ? employee.name : 'Inconnu';
+            let firstName = fullName.split(' ')[0];
             
-            pdf.text(`• ${employeeName}`, x + cellPadding + 2, employeeY);
-          });
-          
-          if (lineEmployees.length > maxEmployees) {
-            pdf.setTextColor(100, 100, 100);
             pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(employeeFontSize);
-            const moreY = employeeStartY + maxEmployees * (employeeFontSize + lineSpacing);
-            pdf.text(`+${lineEmployees.length - maxEmployees}`, x + cellPadding + 2, moreY);
-          }
+            pdf.setFontSize(globalEmployeeFontSize);
+            
+            // Afficher le prénom
+            pdf.text(`• ${firstName}`, employeeX, employeeY);
+          });
         }
         
         // Passer à la colonne suivante
