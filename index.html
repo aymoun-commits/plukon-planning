@@ -1259,7 +1259,7 @@
       updateLines();
       
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
@@ -1364,20 +1364,20 @@
       // Calculer la taille de police globale pour tous les postes
       const headerCellHeight = Math.min(6, cellHeight * 0.18); // Réduit de 25% à 18%
       const availableEmployeeHeight = cellHeight - headerCellHeight - 3; // Réduit le padding de 4.5 à 3
-      let globalEmployeeFontSize = 10; // Augmenté encore plus car on a plus d'espace
-      let globalLineSpacing = globalEmployeeFontSize * 0.12; // Réduit l'espacement
+      let globalEmployeeFontSize = 7; // Réduit de 8.5 à 7
+      let globalLineSpacing = globalEmployeeFontSize * 0.18; // Augmenté de 0.15 à 0.18 pour plus d'espace
       let totalHeight = maxRowsNeeded * (globalEmployeeFontSize + globalLineSpacing);
       
       // Réduire la taille de police jusqu'à ce que le maximum d'employés rentre
-      while (totalHeight > availableEmployeeHeight && globalEmployeeFontSize > 7) {
+      while (totalHeight > availableEmployeeHeight && globalEmployeeFontSize > 5.5) {
         globalEmployeeFontSize -= 0.1;
-        globalLineSpacing = globalEmployeeFontSize * 0.12;
+        globalLineSpacing = globalEmployeeFontSize * 0.18;
         totalHeight = maxRowsNeeded * (globalEmployeeFontSize + globalLineSpacing);
       }
       
-      // S'assurer d'avoir au moins 7pt pour la lisibilité
-      globalEmployeeFontSize = Math.max(7, globalEmployeeFontSize);
-      globalLineSpacing = globalEmployeeFontSize * 0.12;
+      // S'assurer d'avoir au moins 5.5pt pour la lisibilité
+      globalEmployeeFontSize = Math.max(5.5, globalEmployeeFontSize);
+      globalLineSpacing = globalEmployeeFontSize * 0.18;
       
       let currentCol = 0;
       let currentRow = 0;
