@@ -1144,9 +1144,102 @@
       }
     }
 
-    // ==================== LOCALSTORAGE ====================
+    // ==================== LOCALSTORAGE & ARCHIVAGE ====================
     function getStorageKey(date) {
       return `plukon-planning-${date}`;
+    }
+    
+    function getArchiveKey() {
+      return 'plukon-planning-archive';
+    }
+    
+    // Sauvegarder dans l'archive avec timestamp
+    function saveToArchive(date, data) {
+      const archiveKey = getArchiveKey();
+      let archive = {};
+      
+      try {
+        const stored = localStorage.getItem(archiveKey);
+        if (stored) {
+          archive = JSON.parse(stored);
+        }
+      } catch (e) {
+        console.error('Erreur lecture archive:', e);
+      }
+      
+      archive[date] = {
+        ...data,
+        timestamp: new Date().toISOString(),
+        shift: state.currentShift,
+        mode: state.productionMode
+      };
+      
+      try {
+        localStorage.setItem(archiveKey, JSON.stringify(archive));
+      } catch (e) {
+        console.error('Erreur sauvegarde archive:', e);
+      }
+    }
+    
+    // Nettoyer les données de plus d'une semaine
+    function cleanOldArchives() {
+      const archiveKey = getArchiveKey();
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      
+      try {
+        const stored = localStorage.getItem(archiveKey);
+        if (!stored) return;
+        
+        const archive = JSON.parse(stored);
+        const cleaned = {};
+        
+        Object.keys(archive).forEach(date => {
+          const itemDate = new Date(date);
+          if (itemDate >= oneWeekAgo) {
+            cleaned[date] = archive[date];
+          } else {
+            // Supprimer aussi la clé individuelle
+            localStorage.removeItem(getStorageKey(date));
+          }
+        });
+        
+        localStorage.setItem(archiveKey, JSON.stringify(cleaned));
+      } catch (e) {
+        console.error('Erreur nettoyage archive:', e);
+      }
+    }
+    
+    // Obtenir l'historique de la semaine
+    function getWeekHistory() {
+      const archiveKey = getArchiveKey();
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      
+      try {
+        const stored = localStorage.getItem(archiveKey);
+        if (!stored) return [];
+        
+        const archive = JSON.parse(stored);
+        const history = [];
+        
+        Object.keys(archive).forEach(date => {
+          const itemDate = new Date(date);
+          if (itemDate >= oneWeekAgo) {
+            history.push({
+              date: date,
+              ...archive[date]
+            });
+          }
+        });
+        
+        // Trier par date décroissante
+        history.sort((a, b) => new Date(b.date) - new Date(a.date));
+        return history;
+      } catch (e) {
+        console.error('Erreur récupération historique:', e);
+        return [];
+      }
     }
 
     function loadPlanning(date) {
@@ -1169,10 +1262,26 @@
 
     function savePlanning() {
       const key = getStorageKey(state.currentDate);
-      localStorage.setItem(key, JSON.stringify({
+      const data = {
         assignments: state.assignments,
         capacities: state.capacities,
-      }));
+      };
+      
+      // Sauvegarder dans le stockage principal
+      localStorage.setItem(key, JSON.stringify(data));
+      
+      // Sauvegarder dans l'archive
+      saveToArchive(state.currentDate, data);
+      
+      // Nettoyer les anciennes données (une fois par jour)
+      const lastCleanKey = 'plukon-last-clean';
+      const today = new Date().toISOString().split('T')[0];
+      const lastClean = localStorage.getItem(lastCleanKey);
+      
+      if (lastClean !== today) {
+        cleanOldArchives();
+        localStorage.setItem(lastCleanKey, today);
+      }
     }
 
     // ==================== HELPERS ====================
@@ -1525,9 +1634,6 @@
       const printDate = now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       pdf.text(`Imprimé le ${printDate}`, pageWidth / 2 - 20, footerY);
       
-      const totalAssigned = getAssignedEmployeeIds().size;
-      pdf.text(`${totalAssigned} employés affectés`, pageWidth - margin - 25, footerY);
-      
       // Sauvegarder le PDF dans l'historique
       const pdfBlob = pdf.output('blob');
       const reader = new FileReader();
@@ -1569,9 +1675,18 @@
       // Toujours ajouter une nouvelle entrée (ne pas remplacer)
       pdfHistory.unshift(pdfEntry);
       
-      // Limiter à 50 PDFs (pour ne pas surcharger le localStorage)
-      if (pdfHistory.length > 50) {
-        pdfHistory = pdfHistory.slice(0, 50);
+      // Nettoyer les PDF de plus d'une semaine
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      
+      pdfHistory = pdfHistory.filter(pdf => {
+        const pdfDate = new Date(pdf.timestamp);
+        return pdfDate >= oneWeekAgo;
+      });
+      
+      // Limiter à 100 PDFs maximum (pour ne pas surcharger le localStorage)
+      if (pdfHistory.length > 100) {
+        pdfHistory = pdfHistory.slice(0, 100);
       }
       
       try {
@@ -1636,7 +1751,7 @@
               <strong>${pdfHistory.length}</strong> PDF sauvegardé(s)
             </p>
             <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #666;">
-              Chaque export crée une nouvelle archive. Vous pouvez avoir plusieurs versions du même planning.
+              Les PDF sont automatiquement sauvegardés et conservés pendant <strong>au moins 7 jours</strong>. Vous pouvez avoir plusieurs versions du même planning.
             </p>
           </div>
           
@@ -1664,6 +1779,9 @@
                 });
                 const shiftLabel = entry.shift === 'matin' ? '🌅 Matin (06:30)' : '🌆 Après-midi (14:41)';
                 const planningDate = formatDate(entry.date);
+                const modeLabel = entry.mode === 'bio' ? 'BIO' : 'STANDARD';
+                const modeColor = entry.mode === 'bio' ? '#2e7d32' : '#1976d2';
+                const modeBgColor = entry.mode === 'bio' ? '#e8f5e9' : '#e3f2fd';
                 
                 // Compter combien d'exports pour cette date/équipe
                 const sameConfig = pdfHistory.filter(p => 
@@ -1687,9 +1805,20 @@
                       <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
                         <span style="font-size: 1.5rem;">📄</span>
                         <div style="flex: 1;">
-                          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; flex-wrap: wrap;">
                             <span style="font-weight: 700; color: #00783C; font-size: 1.1rem;">
                               ${planningDate}
+                            </span>
+                            <span style="
+                              background: ${modeBgColor};
+                              color: ${modeColor};
+                              padding: 0.25rem 0.75rem;
+                              border-radius: 6px;
+                              font-size: 0.8rem;
+                              font-weight: 700;
+                              letter-spacing: 0.05em;
+                            ">
+                              ${modeLabel}
                             </span>
                             ${sameConfig.length > 1 ? `
                               <span style="
