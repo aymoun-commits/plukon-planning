@@ -6,6 +6,7 @@
   <title>Plukon Planning - Production</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
@@ -1362,6 +1363,148 @@
       render();
     }
 
+    // ==================== EXPORT EXCEL ROTATION ====================
+    function exportRotationExcel() {
+      // S'assurer d'utiliser les bonnes lignes selon le mode
+      updateLines();
+      
+      // Créer un nouveau classeur avec ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      
+      // En-tête avec date et équipe
+      const dateFormatted = new Date(state.currentDate).toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      const shiftLabel = state.currentShift === 'matin' ? 'Matin' : 'Après-midi';
+      const modeLabel = state.productionMode === 'bio' ? 'BIO' : 'STANDARD';
+      
+      const sheetName = `Rotation ${dateFormatted.replace(/\//g, '-')}`;
+      const worksheet = workbook.addWorksheet(sheetName);
+      
+      // Définir les largeurs de colonnes
+      worksheet.columns = [
+        { key: 'nom', width: 25 },
+        { key: 'poste', width: 12 },
+        { key: 'rot1', width: 12 },
+        { key: 'rot2', width: 12 }
+      ];
+      
+      // LIGNE 1 : Titre avec fusion
+      const titleRow = worksheet.addRow([`ROTATION — ${dateFormatted} ${shiftLabel} (${modeLabel})`, '', '', '']);
+      worksheet.mergeCells('A1:D1');
+      titleRow.height = 35;
+      titleRow.font = { bold: true, size: 16, color: { argb: 'FFFFFFFF' } };
+      titleRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF009639' } // Vert Plukon
+      };
+      titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
+      titleRow.border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+      };
+      
+      // LIGNE 2 : Ligne vide
+      worksheet.addRow(['', '', '', '']);
+      
+      // LIGNE 3 : En-têtes de colonnes
+      const headerRow = worksheet.addRow(['NOM', 'POSTE', 'ROT. 1', 'ROT. 2']);
+      headerRow.height = 25;
+      headerRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF00783C' } // Vert foncé
+      };
+      headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+      headerRow.eachCell((cell) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
+      });
+      
+      // Parcourir toutes les lignes de production et ajouter les employés
+      let rowIndex = 0;
+      lines.forEach(line => {
+        const lineEmployeeIds = getLineEmployees(line.id);
+        const lineEmployees = lineEmployeeIds.map(id => employees.find(e => e.id === id)).filter(Boolean);
+        
+        // Extraire le numéro du poste
+        const posteNumber = line.name.match(/\d+/)?.[0] || '';
+        
+        lineEmployees.forEach(employee => {
+          const firstName = employee.name.split(' ')[0].toUpperCase();
+          const dataRow = worksheet.addRow([firstName, posteNumber, '', '']);
+          
+          // Alternance de couleurs
+          const bgColor = rowIndex % 2 === 0 ? 'FFFFFFFF' : 'FFF0F0F0';
+          dataRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: bgColor }
+          };
+          
+          // Style des cellules
+          dataRow.eachCell((cell, colNumber) => {
+            cell.font = { size: 11, bold: colNumber === 1 }; // Nom en gras
+            cell.alignment = { 
+              vertical: 'middle', 
+              horizontal: colNumber === 1 ? 'left' : 'center' 
+            };
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+              bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+              left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+              right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
+            };
+          });
+          
+          rowIndex++;
+        });
+      });
+      
+      // Ligne vide avant le total
+      worksheet.addRow(['', '', '', '']);
+      
+      // LIGNE DE TOTAL
+      const totalEmployees = getAssignedEmployeeIds().size;
+      const totalRow = worksheet.addRow([`TOTAL : ${totalEmployees} employés`, '', '', '']);
+      worksheet.mergeCells(`A${totalRow.number}:D${totalRow.number}`);
+      totalRow.height = 25;
+      totalRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+      totalRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF009639' } // Vert Plukon
+      };
+      totalRow.alignment = { vertical: 'middle', horizontal: 'center' };
+      totalRow.border = {
+        top: { style: 'medium', color: { argb: 'FF000000' } },
+        bottom: { style: 'medium', color: { argb: 'FF000000' } },
+        left: { style: 'medium', color: { argb: 'FF000000' } },
+        right: { style: 'medium', color: { argb: 'FF000000' } }
+      };
+      
+      // Générer et télécharger le fichier
+      workbook.xlsx.writeBuffer().then(buffer => {
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `rotation_${state.currentDate.replace(/-/g, '_')}_${state.currentShift}_${state.productionMode}.xlsx`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      });
+    }
+
     // ==================== EXPORT PDF ====================
     function exportPDF() {
       // S'assurer d'utiliser les bonnes lignes selon le mode
@@ -2059,6 +2202,9 @@
             <button class="btn btn-secondary" id="btn-reset">
               ↻ Réinitialiser
             </button>
+            <button class="btn btn-primary" id="btn-export-rotation">
+              📊 Rotation Excel
+            </button>
             <button class="btn btn-primary" id="btn-export">
               📄 Exporter PDF
             </button>
@@ -2206,6 +2352,7 @@
 
       document.getElementById('btn-reset').addEventListener('click', resetPlanning);
       document.getElementById('btn-pdf-archives').addEventListener('click', showPDFHistoryModal);
+      document.getElementById('btn-export-rotation').addEventListener('click', exportRotationExcel);
       document.getElementById('btn-export').addEventListener('click', exportPDF);
       document.getElementById('btn-manage-employees').addEventListener('click', showEmployeeManagementModal);
 
