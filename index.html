@@ -1383,6 +1383,22 @@
       const sheetName = `Rotation ${dateFormatted.replace(/\//g, '-')}`;
       const worksheet = workbook.addWorksheet(sheetName);
       
+      // Configuration d'impression A4 portrait
+      worksheet.pageSetup = {
+        paperSize: 9,           // A4
+        orientation: 'portrait',
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,         // 0 = autant de pages que nécessaire en hauteur
+        margins: {
+          left: 0.5, right: 0.5,
+          top: 0.75, bottom: 0.75,
+          header: 0.3, footer: 0.3
+        },
+        printTitlesRow: '$3:$3', // Répéter la ligne d'en-tête si plusieurs pages
+        horizontalCentered: true
+      };
+      
       // Définir les largeurs de colonnes
       worksheet.columns = [
         { key: 'nom', width: 25 },
